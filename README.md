@@ -1,3 +1,5 @@
+🔗 **Live demo:** https://toscim.github.io/conical-warp-tool/conical-warp-tool.html
+
 # Conical Warp Tool
 
 A free, open-source, browser-based tool for distorting flat artwork to match the conical (frustum) shape of buckets, cups, and other tapered containers. No installation needed — runs entirely in the browser as a single HTML file.
