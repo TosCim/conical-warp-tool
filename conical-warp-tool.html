@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Conical Warp Tool</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{min-height:100vh;background:linear-gradient(160deg,#111827,#1e293b 60%,#0f172a);color:#e2e8f0;font-family:'JetBrains Mono','Fira Code','SF Mono','Consolas',monospace}
+.header{padding:14px 20px;border-bottom:1px solid rgba(231,76,60,0.25);background:rgba(0,0,0,0.25);display:flex;align-items:center;gap:12px}
+.logo{width:34px;height:34px;border-radius:7px;background:linear-gradient(135deg,#e74c3c,#c0392b);display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:900;color:#fff}
+.header h1{font-size:15px;font-weight:700;color:#fff}
+.header p{font-size:8px;color:#e74c3c;letter-spacing:2px;text-transform:uppercase}
+.lang-btn{margin-left:auto;padding:4px 10px;border-radius:4px;font-size:10px;font-family:inherit;cursor:pointer;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.05);color:#ccc;font-weight:600}
+.lang-btn:hover{background:rgba(255,255,255,0.1);color:#fff}
+.layout{display:grid;grid-template-columns:310px 1fr;min-height:calc(100vh - 63px)}
+.sidebar{border-right:1px solid rgba(255,255,255,0.06);padding:14px 16px;display:flex;flex-direction:column;gap:14px;background:rgba(0,0,0,0.12);overflow-y:auto}
+.main{padding:18px;display:flex;flex-direction:column;gap:14px;overflow:auto}
+.sec-title{margin:0 0 5px;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:#e74c3c;font-weight:700}
+.field{display:flex;align-items:center;gap:6px;margin-bottom:4px}
+.field label{flex:1;font-size:10px;color:#bbb}
+.field input,.field select{padding:5px 7px;border-radius:4px;font-size:11px;font-family:inherit;border:1px solid rgba(255,255,255,0.15);background:rgba(0,0,0,0.3);color:#fff;outline:none}
+.field input{width:60px;text-align:right}
+.field select{cursor:pointer}
+.field span{font-size:9px;color:#888;width:18px}
+.info-box{padding:7px;background:rgba(231,76,60,0.08);border-radius:5px;border:1px solid rgba(231,76,60,0.18);font-size:9px;line-height:1.7}
+.info-box b{color:#e74c3c}
+.calc-box{padding:7px;background:rgba(46,204,113,0.08);border-radius:5px;border:1px solid rgba(46,204,113,0.18);font-size:9px;line-height:1.7}
+.calc-box b{color:#2ecc71}
+.dpi-row{display:flex;gap:3px}
+.dpi-btn{flex:1;padding:5px 0;border-radius:4px;font-size:10px;font-family:inherit;cursor:pointer;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.04);color:#999;font-weight:400}
+.dpi-btn.active{border:2px solid #e74c3c;background:rgba(231,76,60,0.18);color:#e74c3c;font-weight:700}
+.dpi-btn span{font-size:7px}
+.run-btn{width:100%;padding:10px;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;color:#fff;background:linear-gradient(135deg,#e74c3c,#c0392b)}
+.run-btn:disabled{background:#333;cursor:not-allowed}
+.drop-zone{border:2px dashed rgba(255,255,255,0.12);border-radius:8px;padding:32px 14px;text-align:center;cursor:pointer;background:rgba(255,255,255,0.02);transition:all .25s}
+.drop-zone.over{border-color:#e74c3c;background:rgba(231,76,60,0.08)}
+.drop-zone.has-img{padding:8px}
+.drop-zone img{max-width:100%;max-height:140px;border-radius:4px;border:1px solid rgba(255,255,255,0.08)}
+.result-btns{display:flex;gap:6px;margin-bottom:8px}
+.btn-dl{flex:1;padding:7px 12px;border:1px solid rgba(255,255,255,0.15);border-radius:4px;font-size:10px;font-weight:600;cursor:pointer;color:#ccc;font-family:inherit;background:rgba(255,255,255,0.05)}
+.btn-dl:hover{background:rgba(255,255,255,0.1);color:#fff}
+.result-box{background:#fff;border-radius:6px;padding:8px;text-align:center}
+.result-box canvas{max-width:100%;max-height:50vh}
+.result-info{margin-top:3px;font-size:9px;color:#777;text-align:center}
+.spinner{width:28px;height:28px;border:3px solid rgba(231,76,60,0.15);border-top:3px solid #e74c3c;border-radius:50%;margin:0 auto 10px;animation:sp .9s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.err-msg{padding:6px;background:rgba(231,76,60,0.15);border-radius:5px;font-size:10px;color:#ff6b6b;line-height:1.4}
+.empty{flex:1;display:flex;align-items:center;justify-content:center;opacity:.2;font-size:11px;line-height:2;text-align:center}
+@media(max-width:700px){.layout{grid-template-columns:1fr}.sidebar{border-right:none;border-bottom:1px solid rgba(255,255,255,0.06)}}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">&#9687;</div>
+  <div>
+    <h1>Conical Warp Tool</h1>
+    <p id="subtitle">Distorsione conica per etichette secchi</p>
+  </div>
+  <button class="lang-btn" id="langBtn" onclick="toggleLang()">EN</button>
+</div>
+
+<div class="layout">
+  <div class="sidebar">
+    <div>
+      <h3 class="sec-title" data-t="sec_bucket">1. Seleziona Secchio</h3>
+      <div class="field">
+        <label data-t="lbl_bucket">Secchio</label>
+        <select id="bucketSel" onchange="onBucketSelect()" style="flex:1.5">
+          <option value="" data-t="opt_manual">-- Manuale --</option>
+        </select>
+      </div>
+      <div id="bucketDetails" class="info-box" style="display:none"></div>
+    </div>
+
+    <div>
+      <h3 class="sec-title" data-t="sec_label">Dimensioni Etichetta</h3>
+      <div class="field"><label data-t="lbl_labelH">Altezza etichetta</label><input id="labelH" type="text" value="25" onfocus="this.select()" oninput="onLabelChange()"><span>cm</span></div>
+      <div class="field"><label data-t="lbl_offset">Distanza dal fondo</label><input id="labelOffset" type="text" value="0" onfocus="this.select()" oninput="onLabelChange()"><span>cm</span></div>
+      <div class="field"><label data-t="lbl_overlap">Overlap (sovrapposizione)</label><input id="overlapF" type="text" value="0.5" onfocus="this.select()" oninput="onLabelChange()"><span>cm</span></div>
+      <div class="field"><label data-t="lbl_bleed">Bleed (abbondanza)</label><input id="bleedF" type="text" value="0.3" onfocus="this.select()" oninput="onLabelChange()"><span>cm</span></div>
+      <div id="calcDims" class="calc-box" style="display:none"></div>
+    </div>
+
+    <div>
+      <h3 class="sec-title" data-t="sec_params">Parametri Risultanti</h3>
+      <div class="field"><label data-t="lbl_topD">Diametro sopra (etichetta)</label><input id="topD" type="text" value="28.6" onfocus="this.select()"><span>cm</span></div>
+      <div class="field"><label data-t="lbl_botD">Diametro sotto (etichetta)</label><input id="botD" type="text" value="26.8" onfocus="this.select()"><span>cm</span></div>
+      <div class="field"><label data-t="lbl_htD">Altezza fascia</label><input id="htD" type="text" value="25" onfocus="this.select()"><span>cm</span></div>
+      <div id="coneInfo" class="info-box" style="display:none"></div>
+    </div>
+
+    <div>
+      <h3 class="sec-title" data-t="sec_preview">Anteprima sviluppo</h3>
+      <canvas id="preview" style="width:100%;height:170px;border-radius:5px;background:rgba(0,0,0,0.25)"></canvas>
+    </div>
+
+    <div>
+      <h3 class="sec-title" data-t="sec_dpi">2. Risoluzione</h3>
+      <div class="dpi-row">
+        <button class="dpi-btn" data-dpi="72" onclick="setDpi(72)">72<span> dpi</span></button>
+        <button class="dpi-btn" data-dpi="150" onclick="setDpi(150)">150<span> dpi</span></button>
+        <button class="dpi-btn" data-dpi="200" onclick="setDpi(200)">200<span> dpi</span></button>
+        <button class="dpi-btn active" data-dpi="300" onclick="setDpi(300)">300<span> dpi</span></button>
+      </div>
+    </div>
+
+    <div>
+      <h3 class="sec-title" data-t="sec_run">3. Elabora</h3>
+      <button class="run-btn" id="runBtn" onclick="doWarp()" disabled data-t="btn_run">Applica Distorsione Conica</button>
+    </div>
+
+    <div id="errBox" class="err-msg" style="display:none"></div>
+  </div>
+
+  <div class="main">
+    <div>
+      <h3 class="sec-title" data-t="sec_upload">Carica Grafica Piatta (PNG / JPG)</h3>
+      <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileIn').click()">
+        <input type="file" id="fileIn" accept="image/*" style="display:none">
+        <div id="dropContent">
+          <div style="font-size:26px;margin-bottom:6px">&#127912;</div>
+          <div style="font-size:12px;font-weight:600;color:#ccc" data-t="drop_title">Trascina qui o clicca</div>
+          <div style="font-size:9px;color:#666;margin-top:6px;line-height:1.6" data-t="drop_sub">PNG/JPG alta risoluzione — rettangolo piatto completo</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="busyBox" style="display:none;text-align:center;padding:36px;color:#e74c3c;font-size:12px">
+      <div class="spinner"></div><span data-t="busy_msg">Elaborazione in corso...</span>
+    </div>
+
+    <div id="resultBox" style="display:none">
+      <h3 class="sec-title" data-t="sec_result">Risultato</h3>
+      <div class="result-btns">
+        <button class="btn-dl" onclick="dlPNG()" data-t="btn_png">Scarica PNG</button>
+        <button class="btn-dl" onclick="dlPDF()" data-t="btn_pdf">Scarica PDF</button>
+        <button class="btn-dl" onclick="dlDieLine()" data-t="btn_svg">Scarica Die-Line SVG</button>
+      </div>
+      <div class="result-box"><canvas id="resultCanvas"></canvas></div>
+      <div class="result-info" id="resultInfo"></div>
+    </div>
+
+    <div class="empty" id="emptyState"><span data-t="empty_msg">1. Seleziona secchio &rarr; 2. Carica grafica &rarr; 3. Elabora</span></div>
+  </div>
+</div>
+
+<script>
+// ============ LANGUAGE SYSTEM ============
+const LANGS = {
+  it: {
+    subtitle: "Distorsione conica per etichette secchi",
+    sec_bucket: "1. Seleziona Secchio",
+    lbl_bucket: "Secchio",
+    opt_manual: "-- Manuale --",
+    sec_label: "Dimensioni Etichetta",
+    lbl_labelH: "Altezza etichetta",
+    lbl_offset: "Distanza dal fondo",
+    lbl_overlap: "Overlap (sovrapposizione)",
+    lbl_bleed: "Bleed (abbondanza)",
+    sec_params: "Parametri Risultanti",
+    lbl_topD: "Diametro sopra (etichetta)",
+    lbl_botD: "Diametro sotto (etichetta)",
+    lbl_htD: "Altezza fascia",
+    sec_preview: "Anteprima sviluppo",
+    sec_dpi: "2. Risoluzione",
+    sec_run: "3. Elabora",
+    btn_run: "Applica Distorsione Conica",
+    sec_upload: "Carica Grafica Piatta (PNG / JPG)",
+    drop_title: "Trascina qui o clicca",
+    drop_sub: "PNG/JPG alta risoluzione — rettangolo piatto completo",
+    busy_msg: "Elaborazione in corso...",
+    sec_result: "Risultato",
+    btn_png: "Scarica PNG",
+    btn_pdf: "Scarica PDF (con die-line)",
+    btn_svg: "Scarica Die-Line SVG",
+    empty_msg: "1. Seleziona secchio → 2. Carica grafica → 3. Elabora",
+    calc_dBot: "Ø bordo inf. etichetta",
+    calc_dTop: "Ø bordo sup. etichetta",
+    calc_hLabel: "Altezza fascia",
+    calc_flatW: "Larghezza grafica piatta (circ. bocca)",
+    calc_flatWm: "con overlap",
+    calc_flatH: "Altezza grafica piatta",
+    calc_flatHm: "con bleed",
+    calc_exceed: "Altezza etichetta + offset supera l'altezza del secchio",
+    click_change: "clicca per cambiare",
+    cyl_msg: "Cilindro, nessuna distorsione",
+    dl_fail: "Download fallito",
+    popup_block: "Popup bloccato",
+    too_big: "Output troppo grande. Riduci i DPI.",
+  },
+  en: {
+    subtitle: "Conical distortion for bucket labels",
+    sec_bucket: "1. Select Bucket",
+    lbl_bucket: "Bucket",
+    opt_manual: "-- Manual --",
+    sec_label: "Label Dimensions",
+    lbl_labelH: "Label height",
+    lbl_offset: "Distance from bottom",
+    lbl_overlap: "Overlap",
+    lbl_bleed: "Bleed",
+    sec_params: "Resulting Parameters",
+    lbl_topD: "Top diameter (label)",
+    lbl_botD: "Bottom diameter (label)",
+    lbl_htD: "Label height",
+    sec_preview: "Development preview",
+    sec_dpi: "2. Resolution",
+    sec_run: "3. Process",
+    btn_run: "Apply Conical Distortion",
+    sec_upload: "Load Flat Artwork (PNG / JPG)",
+    drop_title: "Drag here or click",
+    drop_sub: "High resolution PNG/JPG — full flat rectangle",
+    busy_msg: "Processing...",
+    sec_result: "Result",
+    btn_png: "Download PNG",
+    btn_pdf: "Download PDF (with die-line)",
+    btn_svg: "Download Die-Line SVG",
+    empty_msg: "1. Select bucket → 2. Load artwork → 3. Process",
+    calc_dBot: "Ø label bottom edge",
+    calc_dTop: "Ø label top edge",
+    calc_hLabel: "Label height",
+    calc_flatW: "Flat artwork width (top circumference)",
+    calc_flatWm: "with overlap",
+    calc_flatH: "Flat artwork height",
+    calc_flatHm: "with bleed",
+    calc_exceed: "Label height + offset exceeds bucket height",
+    click_change: "click to change",
+    cyl_msg: "Cylinder, no distortion needed",
+    dl_fail: "Download failed",
+    popup_block: "Popup blocked",
+    too_big: "Output too large. Reduce DPI.",
+  }
+};
+let curLang = 'it';
+function T(key) { return LANGS[curLang][key] || key; }
+function applyLang() {
+  document.querySelectorAll('[data-t]').forEach(function(el) {
+    const k = el.dataset.t;
+    if (el.tagName === 'OPTION') el.textContent = T(k);
+    else if (el.tagName === 'INPUT' || el.tagName === 'BUTTON') {
+      if (el.type !== 'text') el.textContent = T(k);
+    } else el.innerHTML = T(k);
+  });
+  document.getElementById('subtitle').textContent = T('subtitle');
+  document.getElementById('langBtn').textContent = curLang === 'it' ? 'EN' : 'IT';
+  // Refresh dynamic content
+  if (selectedBucket) onBucketSelect();
+  updateUI();
+}
+function toggleLang() {
+  curLang = curLang === 'it' ? 'en' : 'it';
+  applyLang();
+}
+
+// ============ BUCKET DATABASE ============
+const BUCKETS = [
+  { name:"15lt - D19",      base:26.8, bocca:29.7, h:32.5 },
+  { name:"14lt - D18",      base:26.6, bocca:29.6, h:30.5 },
+  { name:"10lt - ISI v.12", base:24,   bocca:27,   h:25.3 },
+  { name:"5lt - D61",       base:19.4, bocca:21.4, h:20.1 },
+  { name:"2.5lt - D38",     base:17,   bocca:18.4, h:16   },
+  { name:"1lt - F03",       base:10.85,bocca:12.2, h:13   },
+  { name:"0.33lt - ISI",    base:6.61, bocca:7.72, h:8.45 },
+  { name:"0.33lt - ISI*",   base:6.54, bocca:7.66, h:8.36 },
+  { name:"b.caffe",         base:4.3,  bocca:6.6,  h:7.29 },
+  { name:"120ml trasp.",    base:5.5,  bocca:6.2,  h:5.03 },
+];
+let selectedBucket = null;
+
+// ============ STATE ============
+let currentDpi = 300;
+let cone = null;
+let srcCanvas = null;
+let srcImg = null;
+let resultCanvas = null;
+let pxPerCm = 0;
+
+// ============ ELEMENTS ============
+const topDEl=document.getElementById('topD'), botDEl=document.getElementById('botD'), htDEl=document.getElementById('htD');
+const labelHEl=document.getElementById('labelH'), labelOffsetEl=document.getElementById('labelOffset');
+const overlapEl=document.getElementById('overlapF'), bleedEl=document.getElementById('bleedF');
+const bucketSelEl=document.getElementById('bucketSel'), bucketDetailsEl=document.getElementById('bucketDetails');
+const calcDimsEl=document.getElementById('calcDims');
+const previewEl=document.getElementById('preview');
+const dropZone=document.getElementById('dropZone'), dropContent=document.getElementById('dropContent');
+const fileIn=document.getElementById('fileIn');
+const runBtn=document.getElementById('runBtn');
+const busyBox=document.getElementById('busyBox'), resultBox=document.getElementById('resultBox');
+const resultCanvasEl=document.getElementById('resultCanvas'), resultInfo=document.getElementById('resultInfo');
+const emptyState=document.getElementById('emptyState');
+const coneInfoEl=document.getElementById('coneInfo'), errBox=document.getElementById('errBox');
+
+function showErr(msg){if(msg){errBox.textContent=msg;errBox.style.display='block';}else{errBox.style.display='none';}}
+
+// ============ CONE MATH ============
+function computeCone(topDiam,bottomDiam,height){
+  const R_top=topDiam/2,R_bot=bottomDiam/2;
+  if(Math.abs(R_top-R_bot)<0.001)return{isCylinder:true};
+  const bigR=Math.max(R_top,R_bot),smallR=Math.min(R_top,R_bot);
+  const H_apex=(height*bigR)/(bigR-smallR);
+  const slant_outer=Math.sqrt(H_apex*H_apex+bigR*bigR);
+  const slant_inner=Math.sqrt((H_apex-height)*(H_apex-height)+smallR*smallR);
+  const arc_angle=(2*Math.PI*bigR)/slant_outer;
+  return{isCylinder:false,R_top,R_bot,height,H_apex,slant_outer,slant_inner,arc_angle};
+}
+function getSectorBounds(rO,rI,halfAngle){
+  let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
+  const sA=-Math.PI/2-halfAngle,eA=-Math.PI/2+halfAngle;
+  for(let i=0;i<=80;i++){const a=sA+(eA-sA)*i/80;for(const r of[rO,rI]){const x=r*Math.cos(a),y=r*Math.sin(a);if(x<minX)minX=x;if(x>maxX)maxX=x;if(y<minY)minY=y;if(y>maxY)maxY=y;}}
+  return{minX,maxX,minY,maxY};
+}
+
+// ============ BUCKET SELECT ============
+BUCKETS.forEach(function(b,i){const o=document.createElement('option');o.value=i;o.textContent=b.name;bucketSelEl.appendChild(o);});
+
+function onBucketSelect(){
+  const idx=bucketSelEl.value;
+  if(idx===''){selectedBucket=null;bucketDetailsEl.style.display='none';calcDimsEl.style.display='none';return;}
+  selectedBucket=BUCKETS[parseInt(idx)];
+  const coef=((selectedBucket.bocca-selectedBucket.base)/selectedBucket.h).toFixed(4);
+  bucketDetailsEl.style.display='block';
+  bucketDetailsEl.innerHTML='<b>'+selectedBucket.name+'</b><br>Base: '+selectedBucket.base+' cm | Bocca: '+selectedBucket.bocca+' cm | H: '+selectedBucket.h+' cm<br>Coef: '+coef+' cm/cm';
+  labelHEl.value=selectedBucket.h;
+  labelOffsetEl.value='0';
+  onLabelChange();
+}
+
+function onLabelChange(){
+  if(!selectedBucket){calcDimsEl.style.display='none';return;}
+  const labelH=parseFloat(labelHEl.value)||0;
+  const offset=parseFloat(labelOffsetEl.value)||0;
+  const overlap=parseFloat(overlapEl.value)||0;
+  const bleed=parseFloat(bleedEl.value)||0;
+  const b=selectedBucket;
+
+  if(labelH<=0||labelH+offset>b.h){
+    calcDimsEl.style.display='block';
+    calcDimsEl.innerHTML='<span style="color:#f1c40f">'+T('calc_exceed')+' ('+b.h+' cm)</span>';
+    return;
+  }
+
+  const dBot=b.base+offset*(b.bocca-b.base)/b.h;
+  const dTop=b.base+(offset+labelH)*(b.bocca-b.base)/b.h;
+  const circTop=Math.PI*dTop;
+  const flatW=circTop+overlap*2;
+  const flatH=labelH+bleed*2;
+
+  calcDimsEl.style.display='block';
+  calcDimsEl.innerHTML=
+    T('calc_dBot')+': <b>'+dBot.toFixed(2)+' cm</b><br>'+
+    T('calc_dTop')+': <b>'+dTop.toFixed(2)+' cm</b><br>'+
+    T('calc_flatW')+': <b>'+circTop.toFixed(2)+' cm</b> → '+T('calc_flatWm')+': <b>'+flatW.toFixed(2)+' cm</b><br>'+
+    T('calc_flatH')+': <b>'+labelH.toFixed(1)+' cm</b> → '+T('calc_flatHm')+': <b>'+flatH.toFixed(2)+' cm</b>';
+
+  topDEl.value=dTop.toFixed(2);
+  botDEl.value=dBot.toFixed(2);
+  htDEl.value=labelH;
+  updateCone();
+}
+
+// ============ UI UPDATE ============
+function updateCone(){
+  const t=parseFloat(topDEl.value)||0,b=parseFloat(botDEl.value)||0,h=parseFloat(htDEl.value)||0;
+  if(t>0&&b>0&&h>0){cone=computeCone(t,b,h);showErr("");}else{cone=null;}
+  updateUI();drawPreview();
+}
+function updateUI(){
+  const canRun=srcCanvas&&cone&&!cone.isCylinder;
+  runBtn.disabled=!canRun;
+  if(cone&&!cone.isCylinder){
+    coneInfoEl.style.display='block';
+    coneInfoEl.innerHTML='R est: <b>'+cone.slant_outer.toFixed(2)+' cm</b> | R int: <b>'+cone.slant_inner.toFixed(2)+' cm</b><br>'+
+      'Angolo: <b>'+((cone.arc_angle*180)/Math.PI).toFixed(2)+'°</b> | Apice: <b>'+cone.H_apex.toFixed(2)+' cm</b>';
+  }else{coneInfoEl.style.display='none';}
+}
+
+// ============ PREVIEW ============
+function drawPreview(){
+  if(!cone||cone.isCylinder)return;
+  const c=previewEl,ctx=c.getContext('2d');
+  const dpr=window.devicePixelRatio||1;
+  const rect=c.getBoundingClientRect();
+  c.width=rect.width*dpr;c.height=rect.height*dpr;
+  ctx.scale(dpr,dpr);
+  const W=rect.width,H=rect.height;
+  const{slant_outer,slant_inner,arc_angle}=cone;
+  const half=arc_angle/2,pad=12;
+  const bounds=getSectorBounds(slant_outer,slant_inner,half);
+  const bw=bounds.maxX-bounds.minX,bh=bounds.maxY-bounds.minY;
+  const sc=Math.min((W-pad*2)/bw,(H-pad*2)/bh);
+  const ax=W/2-(bounds.minX+bounds.maxX)/2*sc,ay=H/2-(bounds.minY+bounds.maxY)/2*sc;
+  const sA=-Math.PI/2-half,eA=-Math.PI/2+half;
+  const rO=slant_outer*sc,rI=slant_inner*sc;
+  ctx.clearRect(0,0,W,H);
+  ctx.beginPath();ctx.arc(ax,ay,rO,sA,eA);
+  ctx.lineTo(ax+rI*Math.cos(eA),ay+rI*Math.sin(eA));
+  ctx.arc(ax,ay,rI,eA,sA,true);ctx.closePath();
+  ctx.fillStyle="rgba(231,76,60,0.07)";ctx.fill();
+  ctx.strokeStyle="#e74c3c";ctx.lineWidth=2;ctx.stroke();
+  ctx.setLineDash([4,4]);ctx.strokeStyle="#555";ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(ax,ay);ctx.lineTo(ax+rO*Math.cos(sA),ay+rO*Math.sin(sA));
+  ctx.moveTo(ax,ay);ctx.lineTo(ax+rO*Math.cos(eA),ay+rO*Math.sin(eA));ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle="#e74c3c";ctx.font="bold 9px monospace";ctx.textAlign="center";
+  ctx.fillText("R:"+slant_outer.toFixed(1)+"cm",ax,ay-rO+12);
+  ctx.fillText("r:"+slant_inner.toFixed(1)+"cm",ax,ay-rI-3);
+}
+
+function setDpi(d){currentDpi=d;document.querySelectorAll('.dpi-btn').forEach(function(b){b.classList.toggle('active',parseInt(b.dataset.dpi)===d);});}
+
+// ============ FILE LOADING ============
+function loadFile(file){
+  if(!file||!file.type.startsWith('image/'))return;
+  const reader=new FileReader();
+  reader.onload=function(e){
+    const img=new Image();
+    img.onload=function(){
+      srcImg=img;srcCanvas=document.createElement('canvas');
+      srcCanvas.width=img.width;srcCanvas.height=img.height;
+      srcCanvas.getContext('2d').drawImage(img,0,0);
+      resultCanvas=null;resultBox.style.display='none';emptyState.style.display='none';
+      dropZone.classList.add('has-img');
+      dropContent.innerHTML='<div style="font-size:9px;color:#999;margin-bottom:3px">'+img.width+' x '+img.height+' px - '+T('click_change')+'</div><img src="'+e.target.result+'" alt="Src">';
+      showErr("");updateUI();
+    };img.src=e.target.result;
+  };reader.readAsDataURL(file);
+}
+fileIn.addEventListener('change',function(){if(this.files[0])loadFile(this.files[0]);});
+dropZone.addEventListener('dragover',function(e){e.preventDefault();this.classList.add('over');});
+dropZone.addEventListener('dragleave',function(){this.classList.remove('over');});
+dropZone.addEventListener('drop',function(e){e.preventDefault();this.classList.remove('over');if(e.dataTransfer.files[0])loadFile(e.dataTransfer.files[0]);});
+
+// ============ WARP ============
+function doWarp(){
+  if(!srcCanvas||!cone||cone.isCylinder)return;
+  showErr("");busyBox.style.display='block';resultBox.style.display='none';emptyState.style.display='none';
+  requestAnimationFrame(function(){setTimeout(function(){
+    try{
+      const{slant_outer,slant_inner,arc_angle}=cone;
+      const half=arc_angle/2;
+      pxPerCm=currentDpi/2.54;
+      const rO=slant_outer*pxPerCm,rI=slant_inner*pxPerCm;
+      const bounds=getSectorBounds(rO,rI,half);
+      const pad=Math.ceil(pxPerCm*0.2);
+      const outW=Math.ceil(bounds.maxX-bounds.minX)+pad*2;
+      const outH=Math.ceil(bounds.maxY-bounds.minY)+pad*2;
+      if(outW>16000||outH>16000){showErr(T('too_big')+" ("+outW+"x"+outH+"px)");busyBox.style.display='none';return;}
+      const apexX=-bounds.minX+pad,apexY=-bounds.minY+pad;
+      const out=document.createElement('canvas');out.width=outW;out.height=outH;
+      const outCtx=out.getContext('2d');
+      const sW=srcCanvas.width,sH=srcCanvas.height;
+      const sCtx=srcCanvas.getContext('2d',{willReadFrequently:true});
+      const sData=sCtx.getImageData(0,0,sW,sH);
+      const oData=outCtx.createImageData(outW,outH);
+      for(let py=0;py<outH;py++){for(let px=0;px<outW;px++){
+        const x=px-apexX,y=py-apexY,r=Math.sqrt(x*x+y*y);
+        if(r<rI||r>rO)continue;
+        const angle=Math.atan2(y,x);let na=angle+Math.PI/2;
+        if(na>Math.PI)na-=2*Math.PI;if(na<-Math.PI)na+=2*Math.PI;
+        if(na<-half||na>half)continue;
+        const u=(na+half)/(2*half),v=(rO-r)/(rO-rI);
+        const sx=u*(sW-1),sy=v*(sH-1);
+        const sx0=Math.floor(sx),sy0=Math.floor(sy);
+        const sx1=Math.min(sx0+1,sW-1),sy1=Math.min(sy0+1,sH-1);
+        const fx=sx-sx0,fy=sy-sy0;
+        const i00=(sy0*sW+sx0)*4,i10=(sy0*sW+sx1)*4,i01=(sy1*sW+sx0)*4,i11=(sy1*sW+sx1)*4;
+        const oi=(py*outW+px)*4;
+        for(let c=0;c<4;c++){const t=sData.data[i00+c]*(1-fx)+sData.data[i10+c]*fx;const b=sData.data[i01+c]*(1-fx)+sData.data[i11+c]*fx;oData.data[oi+c]=Math.round(t*(1-fy)+b*fy);}
+      }}
+      outCtx.putImageData(oData,0,0);
+      resultCanvas=out;
+      resultCanvasEl.width=out.width;resultCanvasEl.height=out.height;
+      resultCanvasEl.getContext('2d').drawImage(out,0,0);
+      const wCm=(out.width/pxPerCm).toFixed(1),hCm=(out.height/pxPerCm).toFixed(1);
+      resultInfo.textContent=out.width+' x '+out.height+' px | '+wCm+' x '+hCm+' cm | '+currentDpi+' DPI';
+      resultBox.style.display='block';
+    }catch(e){showErr("Errore: "+e.message);}
+    busyBox.style.display='none';
+  },60);});
+}
+
+// ============ DOWNLOADS ============
+function dlPNG(){
+  if(!resultCanvas)return;
+  try{const url=resultCanvas.toDataURL('image/png');const a=document.createElement('a');a.download='conical_warp_'+currentDpi+'dpi.png';a.href=url;document.body.appendChild(a);a.click();document.body.removeChild(a);}
+  catch(e){showErr(T('dl_fail')+": "+e.message);}
+}
+
+function dlPDF(){
+  if(!resultCanvas||!cone)return;
+  try{
+    const jpegUrl=resultCanvas.toDataURL('image/jpeg',0.95);
+    const jpegB64=jpegUrl.split(',')[1];const jpegBin=atob(jpegB64);
+    const jpegBytes=new Uint8Array(jpegBin.length);
+    for(let i=0;i<jpegBin.length;i++)jpegBytes[i]=jpegBin.charCodeAt(i);
+    const cmToPt=28.3465;
+    const wPt=(resultCanvas.width/pxPerCm)*cmToPt,hPt=(resultCanvas.height/pxPerCm)*cmToPt;
+    const{slant_outer,slant_inner,arc_angle}=cone;
+    const half=arc_angle/2;
+    const rO_px=slant_outer*pxPerCm,rI_px=slant_inner*pxPerCm;
+    const boundsP=getSectorBounds(rO_px,rI_px,half);
+    const pad_px=Math.ceil(pxPerCm*0.2);
+    const apexX_px=-boundsP.minX+pad_px,apexY_px=-boundsP.minY+pad_px;
+    const apexX_pt=(apexX_px/pxPerCm)*cmToPt,apexY_pt=hPt-(apexY_px/pxPerCm)*cmToPt;
+    const rO_pt=slant_outer*cmToPt,rI_pt=slant_inner*cmToPt;
+    function arcBez(cx,cy,r,sa,ea,n){const res=[];const ta=ea-sa,seg=ta/n;for(let i=0;i<n;i++){const a1=sa+i*seg,a2=a1+seg,al=4/3*Math.tan(seg/4);const c1=Math.cos(a1),s1=Math.sin(a1),c2=Math.cos(a2),s2=Math.sin(a2);res.push({p0x:cx+r*c1,p0y:cy+r*s1,p1x:cx+r*c1-r*al*s1,p1y:cy+r*s1+r*al*c1,p2x:cx+r*c2+r*al*s2,p2y:cy+r*s2-r*al*c2,p3x:cx+r*c2,p3y:cy+r*s2});}return res;}
+    const pSA=Math.PI/2-half,pEA=Math.PI/2+half,nS=Math.max(8,Math.ceil(arc_angle/0.15));
+    const oB=arcBez(apexX_pt,apexY_pt,rO_pt,pSA,pEA,nS);
+    const iB=arcBez(apexX_pt,apexY_pt,rI_pt,pEA,pSA,nS);
+    let ds='1 0 1 RG\n0.5 w\n';
+    ds+=oB[0].p0x.toFixed(3)+' '+oB[0].p0y.toFixed(3)+' m\n';
+    for(const b of oB)ds+=b.p1x.toFixed(3)+' '+b.p1y.toFixed(3)+' '+b.p2x.toFixed(3)+' '+b.p2y.toFixed(3)+' '+b.p3x.toFixed(3)+' '+b.p3y.toFixed(3)+' c\n';
+    ds+=iB[0].p0x.toFixed(3)+' '+iB[0].p0y.toFixed(3)+' l\n';
+    for(const b of iB)ds+=b.p1x.toFixed(3)+' '+b.p1y.toFixed(3)+' '+b.p2x.toFixed(3)+' '+b.p2y.toFixed(3)+' '+b.p3x.toFixed(3)+' '+b.p3y.toFixed(3)+' c\n';
+    ds+='h S\n';
+    const mS=8.5,mR=4.25,mO=17;ds+='0 0 0 RG\n0.3 w\n';
+    const rAs=[pSA+0.02,pEA-0.02],rRs=[rO_pt+mO,rI_pt-mO];
+    for(const ra of rAs){for(const rr of rRs){const mx=apexX_pt+rr*Math.cos(ra),my=apexY_pt+rr*Math.sin(ra);
+    ds+=(mx-mS).toFixed(2)+' '+my.toFixed(2)+' m '+(mx+mS).toFixed(2)+' '+my.toFixed(2)+' l S\n';
+    ds+=mx.toFixed(2)+' '+(my-mS).toFixed(2)+' m '+mx.toFixed(2)+' '+(my+mS).toFixed(2)+' l S\n';
+    const k=mR*0.5523;ds+=(mx+mR).toFixed(2)+' '+my.toFixed(2)+' m ';
+    ds+=(mx+mR).toFixed(2)+' '+(my+k).toFixed(2)+' '+(mx+k).toFixed(2)+' '+(my+mR).toFixed(2)+' '+mx.toFixed(2)+' '+(my+mR).toFixed(2)+' c ';
+    ds+=(mx-k).toFixed(2)+' '+(my+mR).toFixed(2)+' '+(mx-mR).toFixed(2)+' '+(my+k).toFixed(2)+' '+(mx-mR).toFixed(2)+' '+my.toFixed(2)+' c ';
+    ds+=(mx-mR).toFixed(2)+' '+(my-k).toFixed(2)+' '+(mx-k).toFixed(2)+' '+(my-mR).toFixed(2)+' '+mx.toFixed(2)+' '+(my-mR).toFixed(2)+' c ';
+    ds+=(mx+k).toFixed(2)+' '+(my-mR).toFixed(2)+' '+(mx+mR).toFixed(2)+' '+(my-k).toFixed(2)+' '+(mx+mR).toFixed(2)+' '+my.toFixed(2)+' c S\n';}}
+    const fs='q '+wPt.toFixed(2)+' 0 0 '+hPt.toFixed(2)+' 0 0 cm /Img0 Do Q\n'+ds;
+    let objs=[];
+    objs.push('1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n');
+    objs.push('2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n');
+    objs.push('3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 '+wPt.toFixed(2)+' '+hPt.toFixed(2)+'] /Contents 4 0 R /Resources << /XObject << /Img0 5 0 R >> >> >>\nendobj\n');
+    objs.push('4 0 obj\n<< /Length '+fs.length+' >>\nstream\n'+fs+'\nendstream\nendobj\n');
+    const hdr='%PDF-1.4\n%\xFF\xFF\xFF\xFF\n';let tp='';let oo=[];let off=hdr.length;
+    for(let i=0;i<objs.length;i++){oo.push(off);tp+=objs[i];off+=objs[i].length;}
+    const i5h='5 0 obj\n<< /Type /XObject /Subtype /Image /Width '+resultCanvas.width+' /Height '+resultCanvas.height+' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length '+jpegBytes.length+' >>\nstream\n';
+    const i5f='\nendstream\nendobj\n';oo.push(off+tp.length);
+    const xo=hdr.length+tp.length+i5h.length+jpegBytes.length+i5f.length;
+    let xr='xref\n0 6\n0000000000 65535 f \n';for(let i=0;i<oo.length;i++)xr+=String(oo[i]).padStart(10,'0')+' 00000 n \n';
+    xr+='trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n'+xo+'\n%%EOF';
+    const enc=new TextEncoder();const hb=enc.encode(hdr+tp+i5h);const fb=enc.encode(i5f+xr);
+    const pd=new Uint8Array(hb.length+jpegBytes.length+fb.length);pd.set(hb,0);pd.set(jpegBytes,hb.length);pd.set(fb,hb.length+jpegBytes.length);
+    const blob=new Blob([pd],{type:'application/pdf'});const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');a.download='conical_warp_'+currentDpi+'dpi.pdf';a.href=url;document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+  }catch(e){showErr("PDF: "+e.message);}
+}
+
+function dlDieLine(){
+  if(!cone||cone.isCylinder)return;
+  try{
+    const{slant_outer,slant_inner,arc_angle}=cone;const half=arc_angle/2;
+    const rO=slant_outer*10,rI=slant_inner*10;
+    const bounds=getSectorBounds(rO,rI,half);const pm=15;
+    const svgW=(bounds.maxX-bounds.minX)+pm*2,svgH=(bounds.maxY-bounds.minY)+pm*2;
+    const ax=-bounds.minX+pm,ay=-bounds.minY+pm;
+    const sA=-Math.PI/2-half,eA=-Math.PI/2+half;
+    const osx=ax+rO*Math.cos(sA),osy=ay+rO*Math.sin(sA),oex=ax+rO*Math.cos(eA),oey=ay+rO*Math.sin(eA);
+    const isx=ax+rI*Math.cos(eA),isy=ay+rI*Math.sin(eA),iex=ax+rI*Math.cos(sA),iey=ay+rI*Math.sin(sA);
+    const la=arc_angle>Math.PI?1:0;
+    const dp='M '+osx.toFixed(3)+' '+osy.toFixed(3)+' A '+rO.toFixed(3)+' '+rO.toFixed(3)+' 0 '+la+' 1 '+oex.toFixed(3)+' '+oey.toFixed(3)+' L '+isx.toFixed(3)+' '+isy.toFixed(3)+' A '+rI.toFixed(3)+' '+rI.toFixed(3)+' 0 '+la+' 0 '+iex.toFixed(3)+' '+iey.toFixed(3)+' Z';
+    const ms=3,mo=6;let rm='';
+    function regM(cx,cy){return'<line x1="'+(cx-ms)+'" y1="'+cy+'" x2="'+(cx+ms)+'" y2="'+cy+'" stroke="#000" stroke-width="0.25"/><line x1="'+cx+'" y1="'+(cy-ms)+'" x2="'+cx+'" y2="'+(cy+ms)+'" stroke="#000" stroke-width="0.25"/><circle cx="'+cx+'" cy="'+cy+'" r="1.5" fill="none" stroke="#000" stroke-width="0.25"/>';}
+    [sA+0.02,eA-0.02].forEach(function(a){[rO+mo,rI-mo].forEach(function(r){const mx=(ax+r*Math.cos(a)).toFixed(2),my=(ay+r*Math.sin(a)).toFixed(2);rm+=regM(mx,my);});});
+    const svg='<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="'+svgW.toFixed(2)+'mm" height="'+svgH.toFixed(2)+'mm" viewBox="0 0 '+svgW.toFixed(2)+' '+svgH.toFixed(2)+'">\n<g id="CutContour"><path d="'+dp+'" fill="none" stroke="#FF00FF" stroke-width="0.5"/></g>\n<g id="RegistrationMarks">'+rm+'</g>\n<g id="Guidelines" opacity="0.3"><line x1="'+ax.toFixed(2)+'" y1="'+ay.toFixed(2)+'" x2="'+osx.toFixed(2)+'" y2="'+osy.toFixed(2)+'" stroke="#999" stroke-width="0.2" stroke-dasharray="2,2"/><line x1="'+ax.toFixed(2)+'" y1="'+ay.toFixed(2)+'" x2="'+oex.toFixed(2)+'" y2="'+oey.toFixed(2)+'" stroke="#999" stroke-width="0.2" stroke-dasharray="2,2"/></g>\n</svg>';
+    const blob=new Blob([svg],{type:'image/svg+xml'});const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');a.download='die_line_secchio.svg';a.href=url;document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+  }catch(e){showErr("SVG: "+e.message);}
+}
+
+// ============ EVENTS & INIT ============
+topDEl.addEventListener('input',updateCone);
+botDEl.addEventListener('input',updateCone);
+htDEl.addEventListener('input',updateCone);
+
+updateCone();
+applyLang();
+</script>
+</body>
+</html>
